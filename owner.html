@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1e6fd9">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>لوحة نشاطي</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef5ff;--card:#fff;--ink:#0f2238;--mute:#5b7089;--line:#d5e3f3;--acc:#1e6fd9;--on:#fff;--inp:#fff;--ok:#16a34a;--warn:#d97706;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1626;--card:#11233a;--ink:#eaf3ff;--mute:#9fb5cc;--line:#26405e;--acc:#4da3ff;--on:#06182c;--inp:#0b1a2d;--ok:#4ade80;--warn:#fbbf24}}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:16px/1.6 Tajawal,system-ui,sans-serif;padding:14px 14px 90px}
+h1{font-size:22px;margin:6px 0}h2{font-size:17px;margin:0 0 6px}.sub,small,.fh{color:var(--mute);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
+input,textarea{width:100%;padding:11px;margin:6px 0;border-radius:12px;border:1px solid var(--line);background:var(--inp);color:var(--ink);font:inherit}
+button{min-height:44px;border:0;border-radius:12px;padding:8px 14px;background:var(--acc);color:var(--on);font:700 15px Tajawal,system-ui;cursor:pointer}
+button.g{background:transparent;color:var(--acc);border:1px solid var(--line)}button.d{background:transparent;color:#dc2626;border:1px solid var(--line)}button:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.acts>*{flex:1 1 auto}.acts a{display:contents}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs button{white-space:nowrap}
+.ltr{direction:ltr;text-align:left}img.t{width:100%;border-radius:12px;margin-top:8px;max-height:220px;object-fit:cover}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--line);font-size:13px}
+.ok{color:var(--ok);margin:6px 0}.warn{color:var(--warn);margin:6px 0}.ban{background:#dc262622;border:1px solid #dc2626;color:var(--ink);border-radius:14px;padding:10px 12px;margin:10px 0}
+#toast{position:fixed;inset-inline:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:14px;display:none;z-index:99;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div><div id="toast"></div>
+<script>
+var U='https://aqmlkutbonkqaozeayot.supabase.co',K='sb_publishable_ly2LVyw0xaL2btskq13AUg_jEo7GhBt',VAPID='BM63KoyMiVvZ8luczbpF0NDL0-h_XyKeKEsFirtajTeTlZP1lTD7eLkWyM9sGOfPSSlZ5VFnBbHTFZeSZws5zxw',TGBOT='dar9144284BOT';
+var $=function(i){return document.getElementById(i)},A=$('app'),TOK='',SLUG='',D=null,ORD=[],MORE=false,QS='',TAB='orders',EDIT=null,BUSY=false;
+var ST={new:'جديد',preparing:'قيد التجهيز',out:'في الطريق',done:'تم التسليم',cancelled:'ملغي'};
+var NEXT={new:['preparing','ابدأ التجهيز'],preparing:['out','خرج للتوصيل'],out:['done','تم التسليم']};
+var PREV={preparing:['new','رجوع: جديد'],out:['preparing','رجوع للتجهيز'],done:['out','رجوع للتوصيل'],cancelled:['new','إعادة فتح']};
+function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(function(){t.style.display='none'},2800)}
+function sget(k){try{return localStorage.getItem(k)}catch(e){return null}}function sset(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}
+function expire(){TOK='';D=null;sset('ot',null);login('انتهت الجلسة. ادخل بالكود تاني.',SLUG)}
+function rpc(f,b){return fetch(U+'/rest/v1/rpc/'+f,{method:'POST',headers:{'Content-Type':'application/json',apikey:K,Authorization:'Bearer '+K},body:JSON.stringify(b||{})}).then(function(r){return r.json().catch(function(){return null}).then(function(j){if(!r.ok){var m=j&&j.message||'err';if(/(^|\W)auth(\W|$)/.test(m)&&TOK&&f!=='owner_login'){expire()}throw new Error(m)}return j})})}
+function emsg(e){var m=String(e&&e.message||e);return m.indexOf('bad_pass')>-1?'كلمة السر لازم تكون 6 حروف أو أرقام على الأقل':m.indexOf('bad_code')>-1?'كود المتجر أو الكود السري/كلمة السر غير صحيح':m.indexOf('locked')>-1?'محاولات غلط كتير على المتجر ده. جرّب بعد 15 دقيقة أو كلّم الإدارة.':m.indexOf('bad_price')>-1?'اكتب سعر واحد بس، أرقام فقط (مثال: 150)':m.indexOf('bad_img')>-1||m==='bad'?'الصورة غير صالحة':m.indexOf('big')>-1?'الصورة كبيرة':m.indexOf('rate')>-1?'رفعت صور كتير، جرّب بعد شوية':m.indexOf('limit')>-1?'وصلت للحد الأقصى':m.indexOf('auth')>-1?'انتهت الجلسة':'حصلت مشكلة، جرّب تاني'}
+function pnorm(p){return String(p||'').replace(/[٠-٩]/g,function(d){return d.charCodeAt(0)-1632}).replace(/[۰-۹]/g,function(d){return d.charCodeAt(0)-1776}).replace(/٫/g,'.').replace(/[,٬]/g,'')}
+function priceOk(p){var s=pnorm(p);if(!/\d/.test(s))return true;var m=s.match(/\d+(?:\.\d+)?/g);return!!m&&m.length===1}
+function shopUrl(){return location.origin+location.pathname.replace(/[^/]*$/,'')+'shop.html?c='+encodeURIComponent(D.client.slug)}
+function fdt(d){return new Date(d).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'})}
+function img(f,mx){return new Promise(function(ok,no){var r=new FileReader();r.onload=function(){var i=new Image();i.onload=function(){var s=Math.min(1,mx/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*s);c.height=Math.round(i.height*s);c.getContext('2d').drawImage(i,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.72))};i.onerror=no;i.src=r.result};r.onerror=no;r.readAsDataURL(f)})}
+function up(f){return img(f,720).then(function(d){return fetch(U+'/functions/v1/owner-upload',{method:'POST',headers:{'Content-Type':'application/json',apikey:K},body:JSON.stringify({token:TOK,image:d})}).then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok||!j.url){if(r.status===401)expire();throw new Error(j.error||'upload')}return j.url})})})}
+
+/* ---------- الدخول: متجر + كود. الكود بيتبدّل بجلسة، ومش بيتخزّن ---------- */
+function login(msg,slug){login0(msg,slug);var sl=String(slug||SLUG||sget('os')||'').trim().toLowerCase();if(sl&&/^[a-z0-9]{4,20}$/.test(sl)){var u=location.origin+location.pathname.replace(/[^/]*$/,'')+'shop.html?c='+encodeURIComponent(sl),d=document.createElement('div');d.className='card';d.innerHTML='<h2>🛍️ رابط المتجر</h2><input class="ltr" readonly value="'+esc(u)+'"><button class="g" id="lcp" style="width:100%">نسخ الرابط</button>';A.appendChild(d);$('lcp').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(u).then(function(){toast('تم النسخ')},function(){toast('النسخ غير متاح')})}}}
+function login0(msg,slug){A.innerHTML='<h1>لوحة نشاطي</h1><p class="sub">اكتب كود المتجر + الكود السري اللي وصلك من الإدارة (10 حروف وأرقام)، أو كلمة السر اللي اخترتها انت.</p><div class="card"><label class="sub">كود المتجر</label><input id="sl" class="ltr" autocapitalize="off" autocomplete="username" placeholder="مثال: a1b2c3d4" value="'+esc(slug||SLUG||sget('os')||'')+'"><label class="sub">الكود السري أو كلمة السر</label><input id="cd" type="password" class="ltr" autocapitalize="off" autocomplete="current-password" maxlength="72" placeholder="••••••••" style="font-size:20px;text-align:center"><label class="sub" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sp" style="width:auto;margin:0"> إظهار</label><button id="go" style="width:100%;margin-top:8px">دخول</button>'+(msg?'<p style="color:#dc2626">'+esc(msg)+'</p>':'')+'</div>';
+ $('sp').onchange=function(){$('cd').type=this.checked?'text':'password'};
+ $('cd').onkeydown=function(e){if(e.key==='Enter')$('go').click()};
+ $('go').onclick=function(){var s=$('sl').value.trim(),c=$('cd').value.trim();if(!s)return toast('اكتب كود المتجر');if(c.length<6)return toast('اكتب الكود السري (10 حروف وأرقام) أو كلمة السر');doLogin(s,c)}}
+function doLogin(s,c){A.innerHTML='<p class="sub">جاري الدخول...</p>';rpc('owner_login',{p_slug:s,p_code:c}).then(function(r){if(!r||!r.ok)throw new Error(r&&r.err||'bad_code');TOK=r.token;SLUG=s.toLowerCase();sset('ot',TOK);sset('os',SLUG);load()}).catch(function(e){login(emsg(e),s)})}
+/* حذف الصور اللي مفيش منتج أو عمل بيشاور عليها من Storage (بيشتغل في الخلفية، ومش بيأثر لو فشل) */
+function clean(){if(!TOK)return;try{fetch(U+'/functions/v1/owner-upload',{method:'POST',headers:{'Content-Type':'application/json',apikey:K},body:JSON.stringify({token:TOK,action:'clean'})}).catch(function(){})}catch(e){}}
+function load(){rpc('owner_get',{p_token:TOK}).then(function(d){D=d;ORD=d.orders.slice();MORE=d.orders.length>=40;QS='';SLUG=d.client.slug||SLUG;sset('os',SLUG);manifest();draw();clean()}).catch(function(e){if(TOK)login(emsg(e),SLUG)})}
+function logout(){var t=TOK;TOK='';sset('ot',null);rpc('owner_logout',{p_token:t}).catch(function(){}).then(function(){location.href=location.pathname+'?s='+encodeURIComponent(SLUG)})}
+function manifest(){try{var b=location.origin+location.pathname.replace(/[^/]*$/,''),m={name:D.client.name+' | لوحة',short_name:String(D.client.name||'لوحتي').slice(0,12),start_url:b+'owner.html?s='+encodeURIComponent(SLUG),scope:b,display:'standalone',lang:'ar',dir:'rtl',background_color:'#1e6fd9',theme_color:'#1e6fd9',icons:[{src:b+'icon-192.png',sizes:'192x192',type:'image/png'},{src:b+'icon-512.png',sizes:'512x512',type:'image/png'}]},l=document.createElement('link');l.rel='manifest';l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}));document.head.appendChild(l)}catch(e){}setTitle()}
+function setTitle(){document.title=(D.open?'('+D.open+') ':'')+D.client.name+' | لوحة'}
+
+/* ---------- بيانات الطلبات ---------- */
+function merge(rows){var m={},seen={};rows.forEach(function(o){m[o.id]=o});ORD=ORD.map(function(o){return m[o.id]||o});ORD.forEach(function(o){seen[o.id]=1});var add=rows.filter(function(o){return!seen[o.id]});ORD=add.concat(ORD).sort(function(a,b){return a.created_at<b.created_at?1:-1});return add}
+function refresh(){return rpc('owner_get',{p_token:TOK}).then(function(d){D=d;if(!QS)merge(d.orders);draw()}).catch(function(e){toast(emsg(e))})}
+function loadOrd(reset){var before=(!reset&&ORD.length)?ORD[ORD.length-1].created_at:null;return rpc('owner_orders',{p_token:TOK,p_before:before,p_q:QS}).then(function(rows){ORD=reset?rows:ORD.concat(rows);MORE=rows.length>=40;draw()}).catch(function(e){toast(emsg(e))})}
+function poll(){rpc('owner_get',{p_token:TOK}).then(function(d){D.client=d.client;D.open=d.open;D.items=TAB==='items'&&EDIT?D.items:d.items;var add=QS?[]:merge(d.orders);setTitle();if(add.length){toast('🛒 طلب جديد ('+add.length+')');try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}if(TAB==='orders'&&!QS&&!BUSY){vOrders();tabsOnly()}else if(add.length||TAB!=='orders')tabsOnly()}).catch(function(){})}
+function tabsOnly(){var b=A.querySelector('[data-t="orders"]');if(b)b.textContent='الطلبات'+(D.open?' ('+D.open+')':'')}
+
+/* ---------- الرسم ---------- */
+function draw(){if(D.client.has_pass===false&&!GATE_SKIP)return gate();var c=D.client,today=new Date().toLocaleDateString('en-CA'),ex=c.active===false||(c.sub_ends_at&&String(c.sub_ends_at)<today);
+ A.innerHTML='<div class="row"><div><h1>'+esc(c.name)+'</h1><span class="sub">لوحة صاحب النشاط</span></div><button class="g" id="out">خروج</button></div>'+(c.has_pass===false?'<div class="ban">🔐 اختار كلمة سر خاصة بيك علشان تدخل بيها في أي وقت من غير ما تحتاج الكود. <a href="#" id="gp" style="color:var(--acc);font-weight:700">اضغط هنا</a></div>':'')+(ex?'<div class="ban">⚠️ اشتراكك منتهي أو موقوف، والمتجر مقفول قدام الزبائن. كلّم الإدارة للتجديد.</div>':'')+
+ topCards()+'<div class="tabs"><button data-t="orders" class="'+(TAB==='orders'?'':'g')+'">الطلبات'+(D.open?' ('+D.open+')':'')+'</button><button data-t="items" class="'+(TAB==='items'?'':'g')+'">خدماتي</button><button data-t="works" class="'+(TAB==='works'?'':'g')+'">أعمالي</button><button data-t="link" class="'+(TAB==='link'?'':'g')+'">الرابط والإشعارات</button></div><div id="v"></div>';
+ topBind();$('out').onclick=function(){if(confirm('تخرج من اللوحة؟'))logout()};if($('gp'))$('gp').onclick=function(e){e.preventDefault();var d=$('pwd');d.open=true;d.scrollIntoView({behavior:'smooth'})};
+ A.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){TAB=b.dataset.t;EDIT=null;draw()}});
+ ({orders:vOrders,items:vItems,works:vWorks,link:vLink})[TAB]();setTitle()}
+
+function payRow(o){var m=o.pay_method?esc(o.pay_method)+(o.pay_ref?' • '+esc(o.pay_ref):''):'';if(o.paid_confirmed_at)return'<p class="ok">✅ الدفع مؤكد'+(m?' ('+m+')':'')+'</p>';if(o.paid_claimed_at)return'<p class="warn">💳 الزبون بلّغ بالدفع'+(m?': '+m:'')+'</p>';return''}
+function ordCard(o){var s=o.status||'new',n=NEXT[s],p=PREV[s],open=s!=='done'&&s!=='cancelled',ls=(o.lines||[]).map(function(l){return esc(l.name)+' ×'+esc(l.q)}).join('، ');
+ return'<div class="card"><div class="row"><b>'+esc(o.cust_name)+'</b><span class="pill">'+(ST[s]||esc(s))+'</span></div><small>#'+esc(String(o.id).slice(0,8))+' • '+fdt(o.created_at)+'</small><p style="margin:6px 0">'+ls+'</p><b>'+esc(o.total)+'</b>'+payRow(o)+(o.address?'<p class="sub">📍 '+esc(o.address)+'</p>':'')+(o.notes?'<p class="sub">📝 '+esc(o.notes)+'</p>':'')+
+ '<div class="acts"><a href="tel:'+esc(String(o.cust_phone||'').replace(/[^0-9+]/g,''))+'"><button class="g" type="button">📞 اتصال</button></a>'+(n?'<button data-o="'+esc(o.id)+'" data-s="'+n[0]+'">'+n[1]+'</button>':'')+(!o.paid_confirmed_at&&s!=='cancelled'?'<button class="g" data-p="'+esc(o.id)+'">'+(o.paid_claimed_at?'أكّد استلام الدفع':'تم استلام الدفع')+'</button>':'')+(p?'<button class="g" data-o="'+esc(o.id)+'" data-s="'+p[0]+'">'+p[1]+'</button>':'')+(open?'<button class="d" data-o="'+esc(o.id)+'" data-s="cancelled">إلغاء</button>':'<button class="d" data-del="'+esc(o.id)+'">🗑 حذف</button>')+'</div></div>'}
+function vOrders(){var v=$('v');
+ v.innerHTML='<div class="row"><input id="qs" placeholder="ابحث: اسم / موبايل / رقم الطلب" value="'+esc(QS)+'"><button id="qb" style="margin-inline-start:6px">بحث</button></div>'+(ORD.some(function(o){var t=o.status||'new';return t==='done'||t==='cancelled'})?'<button class="g" id="oclr" style="width:100%;margin-bottom:10px">🗑 مسح الطلبات المنتهية</button>':'')+(ORD.length?ORD.map(ordCard).join(''):'<div class="card sub">'+(QS?'مفيش نتايج.':'لسه مفيش طلبات. أول ما زبون يطلب هتلاقيه هنا.')+'</div>')+(MORE?'<button class="g" id="mo" style="width:100%">عرض أقدم</button>':'');
+ $('qb').onclick=function(){QS=$('qs').value.trim();loadOrd(true)};$('qs').onkeydown=function(e){if(e.key==='Enter')$('qb').onclick()};if($('mo'))$('mo').onclick=function(){loadOrd(false)};
+ v.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){if(!confirm('تحذف الطلب ده نهائياً؟'))return;b.disabled=true;rpc('owner_order_delete',{p_token:TOK,p_id:b.dataset.del}).then(function(){ORD=ORD.filter(function(o){return o.id!==b.dataset.del});return refresh()}).catch(function(e){toast(emsg(e));b.disabled=false})}});
+ if($('oclr'))$('oclr').onclick=function(){if(!confirm('تمسح كل الطلبات المنتهية نهائياً؟'))return;rpc('owner_orders_clear',{p_token:TOK}).then(function(n){toast('تم مسح '+n+' طلب');ORD=ORD.filter(function(o){var t=o.status||'new';return t!=='done'&&t!=='cancelled'});return refresh()}).catch(function(e){toast(emsg(e))})};
+ v.querySelectorAll('[data-o]').forEach(function(b){b.onclick=function(){var id=b.dataset.o,s=b.dataset.s;if(s==='cancelled'&&!confirm('تلغي الطلب؟'))return;b.disabled=true;BUSY=true;rpc('owner_order_status',{p_token:TOK,p_id:id,p_status:s}).then(function(){ORD.forEach(function(o){if(o.id===id)o.status=s});BUSY=false;return refresh()}).catch(function(e){BUSY=false;toast(emsg(e));b.disabled=false})}});
+ v.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){var id=b.dataset.p;b.disabled=true;rpc('owner_order_paid',{p_token:TOK,p_id:id}).then(function(){ORD.forEach(function(o){if(o.id===id)o.paid_confirmed_at=new Date().toISOString()});toast('تم تأكيد الدفع');draw()}).catch(function(e){toast(emsg(e));b.disabled=false})}})}
+
+function vItems(){var v=$('v'),cur=EDIT&&D.items.find(function(x){return x.id===EDIT})||null;
+ v.innerHTML='<div class="card"><h2>'+(cur?'تعديل: '+esc(cur.name):'إضافة خدمة أو منتج')+'</h2><input id="in" placeholder="الاسم" value="'+esc(cur?cur.name:'')+'"><input id="ip" placeholder="السعر (رقم واحد، مثال: 150)" inputmode="decimal" value="'+esc(cur?cur.price:'')+'"><textarea id="id" rows="2" placeholder="وصف قصير (اختياري)">'+esc(cur?cur.descr:'')+'</textarea><input type="file" id="ii" accept="image/*">'+(cur&&cur.img?'<label class="sub"><input type="checkbox" id="ir" style="width:auto"> حذف الصورة الحالية</label>':'')+'<div class="acts"><button id="ia">'+(cur?'حفظ التعديل':'إضافة')+'</button>'+(cur?'<button class="g" id="ic">إلغاء</button>':'')+'</div></div>'+
+ (D.items.length?D.items.map(function(i){return'<div class="card"><div class="row"><b>'+esc(i.name)+'</b><span>'+esc(i.price)+'</span></div>'+(i.descr?'<p class="sub">'+esc(i.descr)+'</p>':'')+(i.img?'<img class="t" loading="lazy" src="'+esc(i.img)+'" alt="">':'')+'<div class="acts"><button class="g" data-ed="'+esc(i.id)+'">تعديل</button><button class="g" data-tg="'+esc(i.id)+'">'+(i.ok?'متاح ✅ (إيقاف)':'موقوف (تشغيل)')+'</button><button class="d" data-dl="'+esc(i.id)+'">حذف</button></div></div>'}).join(''):'<p class="sub">لسه مفيش خدمات. أضف أول واحدة من فوق.</p>');
+ if($('ic'))$('ic').onclick=function(){EDIT=null;draw()};
+ $('ia').onclick=async function(){var n=$('in').value.trim(),pr=$('ip').value.trim();if(!n)return toast('اكتب الاسم');if(!priceOk(pr))return toast(emsg(new Error('bad_price')));var b=$('ia');b.disabled=true;BUSY=true;
+  try{var im=null;if($('ii').files[0])im=await up($('ii').files[0]);else if($('ir')&&$('ir').checked)im='';
+   await rpc('owner_item_save',{p_token:TOK,p_id:cur?cur.id:null,p_name:n,p_price:pr,p_descr:$('id').value.trim(),p_img:im,p_ok:cur?cur.ok:true});toast(cur?'تم الحفظ':'تمت الإضافة');EDIT=null;BUSY=false;await refresh();if(im!==null)clean()}catch(e){BUSY=false;toast(emsg(e));b.disabled=false}};
+ v.querySelectorAll('[data-ed]').forEach(function(b){b.onclick=function(){EDIT=b.dataset.ed;draw();window.scrollTo(0,0)}});
+ v.querySelectorAll('[data-dl]').forEach(function(b){b.onclick=function(){if(confirm('تحذف؟'))rpc('owner_item_del',{p_token:TOK,p_id:b.dataset.dl}).then(function(){clean();return refresh()}).catch(function(e){toast(emsg(e))})}});
+ v.querySelectorAll('[data-tg]').forEach(function(b){b.onclick=function(){var i=D.items.find(function(x){return x.id===b.dataset.tg});rpc('owner_item_toggle',{p_token:TOK,p_id:i.id,p_ok:!i.ok}).then(refresh).catch(function(e){toast(emsg(e))})}})}
+
+function vWorks(){var v=$('v'),W=D.client.works||[],P=D.client.vip||[];
+ v.innerHTML='<div class="card"><h2>📸 أحد أعمالنا ('+W.length+'/12)</h2><p class="fh">ارفع صور شغلك الحقيقي، بتظهر لزبائنك في المتجر.</p>'+W.map(function(w,n){return'<div><img class="t" loading="lazy" src="'+esc(w.u)+'" alt=""><input data-wt="'+n+'" maxlength="80" value="'+esc(w.t||'')+'" placeholder="سطر عن الصورة"><button class="d" data-wx="'+n+'">حذف</button></div>'}).join('')+'<input type="file" id="wf" accept="image/*" multiple style="margin-top:10px"></div>'+
+ '<div class="card"><h2>⭐ عملاؤنا المميزون ('+P.length+')</h2>'+P.map(function(p,n){return'<div class="row" style="margin:6px 0"><span><b>'+esc(p.n)+'</b>'+(p.t?'<br><small>'+esc(p.t)+'</small>':'')+'</span><button class="d" data-vx="'+n+'">حذف</button></div>'}).join('')+'<input id="vn" maxlength="60" placeholder="اسم العميل"><input id="vt" maxlength="80" placeholder="ملحوظة (اختياري)"><button id="va" style="width:100%">إضافة</button></div>';
+ function sw(w){return rpc('owner_set_works',{p_token:TOK,p_works:w}).then(function(){D.client.works=w;draw();clean()}).catch(function(e){toast(emsg(e))})}
+ function sv(p){return rpc('owner_set_vip',{p_token:TOK,p_vip:p}).then(function(){D.client.vip=p;draw()}).catch(function(e){toast(emsg(e))})}
+ $('wf').onchange=async function(){var fs=Array.from(this.files);if(!fs.length)return;if(W.length+fs.length>12)return toast('الحد 12 صورة');toast('جاري الرفع...');try{var N=W.slice();for(var f of fs)N.push({u:await up(f),t:''});await sw(N)}catch(e){toast(emsg(e))}};
+ v.querySelectorAll('[data-wx]').forEach(function(b){b.onclick=function(){var N=W.slice();N.splice(+b.dataset.wx,1);sw(N)}});
+ v.querySelectorAll('[data-wt]').forEach(function(e){e.onchange=function(){var N=W.slice();N[+e.dataset.wt]={u:N[+e.dataset.wt].u,t:e.value};rpc('owner_set_works',{p_token:TOK,p_works:N}).then(function(){D.client.works=N;toast('تم الحفظ')}).catch(function(x){toast(emsg(x))})}});
+ $('va').onclick=function(){var n=$('vn').value.trim();if(!n)return toast('اكتب الاسم');sv(P.concat([{n:n,t:$('vt').value.trim()}]))};
+ v.querySelectorAll('[data-vx]').forEach(function(b){b.onclick=function(){var N=P.slice();N.splice(+b.dataset.vx,1);sv(N)}})}
+
+
+
+/* ---------- أول دخول: لازم يعمل كلمة سر بنفسه ---------- */
+var GATE_SKIP=false,GATE_DONE='';
+function gate(){var c=D.client;
+ if(GATE_DONE){A.innerHTML='<h1>✅ تمام يا '+esc(c.name)+'</h1><p class="sub">كلمة سرك بقت جاهزة. من النهاردة تدخل بيها بدل الكود.</p><div class="card"><p class="ok">كلمة السر:</p><div class="key" style="font-size:22px;text-align:center;letter-spacing:2px;direction:ltr">'+esc(GATE_DONE)+'</div><button class="g" id="gc" style="width:100%;margin:10px 0">نسخ كلمة السر</button><p class="fh">'+(sget('opw')?'اتحفظت على الجهاز ده وتقدر تشوفها تاني من اللوحة.':'ما اتحفظتش على الجهاز. صوّرها أو انسخها دلوقتي.')+'</p><button id="gg" style="width:100%">دخول اللوحة</button></div>';
+  $('gc').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(GATE_DONE).then(function(){toast('تم النسخ')},function(){toast('النسخ غير متاح')})};$('gg').onclick=function(){GATE_DONE='';draw()};return}
+ A.innerHTML='<h1>🔐 اعمل كلمة السر بتاعتك</h1><p class="sub">خطوة لمرة واحدة. بعدها تدخل بكلمة سرك في أي وقت ومش هتحتاج تكلّم الإدارة لو الكود ضاع.</p><div class="card"><button id="gg1" style="width:100%">🎲 ولّد لي كلمة سر قوية</button><input id="gp1" type="password" class="ltr" autocomplete="new-password" maxlength="64" placeholder="أو اكتب كلمة سر (6 على الأقل)" style="margin-top:10px"><input id="gp2" type="password" class="ltr" autocomplete="new-password" maxlength="64" placeholder="اكتبها تاني للتأكيد"><label class="sub" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="gsh">إظهار</label><label class="sub" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="gsv" checked>احفظ نسخة على الجهاز ده</label><button id="gsave" style="width:100%;margin-top:8px">حفظ ودخول</button><p style="text-align:center;margin-top:10px"><a href="#" id="gsk" class="sub">لاحقاً</a></p></div>';
+ $('gg1').onclick=function(){var g=genPass();$('gp1').value=g;$('gp2').value=g;$('gp1').type='text';$('gp2').type='text';$('gsh').checked=true;toast('اتولّدت. اضغط حفظ')};
+ $('gsh').onchange=function(){var t=this.checked?'text':'password';$('gp1').type=t;$('gp2').type=t};
+ $('gsk').onclick=function(e){e.preventDefault();GATE_SKIP=true;draw()};
+ $('gsave').onclick=function(){var a=$('gp1').value,b=$('gp2').value;if(a.length<6)return toast('كلمة السر 6 حروف أو أرقام على الأقل');if(a!==b)return toast('الكلمتين مش زي بعض');var bt=$('gsave');bt.disabled=true;rpc('owner_set_pass',{p_token:TOK,p_pass:a}).then(function(){D.client.has_pass=true;sset('opw',$('gsv').checked?a:null);GATE_DONE=a;gate()}).catch(function(e){toast(emsg(e));bt.disabled=false})}}
+
+/* ---------- كروت ثابتة فوق: رابط المتجر + كلمة السر ---------- */
+var NEWPW='';
+function genPass(){var ch='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',a=new Uint32Array(10),o='';crypto.getRandomValues(a);for(var i=0;i<10;i++)o+=ch[a[i]%ch.length];return o}
+function topCards(){var c=D.client,u=shopUrl();
+ return '<div class="card"><h2>🛍️ رابط متجرك</h2><p class="fh">ابعته لزبائنك على واتساب أو انشره.</p><input class="ltr" readonly value="'+esc(u)+'"><div class="acts"><button id="cp" class="g">نسخ</button><button id="wa">مشاركة واتساب</button></div></div>'+
+ '<details class="card" id="pwd"'+(c.has_pass&&!NEWPW?'':' open')+'><summary style="cursor:pointer;font-weight:800;font-size:17px">🔐 كلمة السر '+(c.has_pass?'<span class="ok" style="font-size:14px">✅ مفعّلة (اضغط للتغيير)</span>':'<span class="warn" style="font-size:14px">لسه ما اخترتهاش</span>')+'</summary>'+
+ '<p class="fh" style="margin-top:10px">'+(c.has_pass?'تقدر تغيّرها في أي وقت.':'اختار كلمة سر (6 حروف أو أرقام على الأقل) أو خلّينا نولّدلك واحدة قوية. بعدها تدخل بيها بدل الكود، ومش هتحتاج الإدارة لو الكود ضاع.')+'</p>'+
+ (NEWPW?'<p class="ok">كلمة سرك الجديدة (احفظها دلوقتي):</p><div class="key" style="font-size:20px;text-align:center;letter-spacing:2px">'+esc(NEWPW)+'</div><button class="g" id="npc" style="width:100%;margin:8px 0">نسخ كلمة السر</button>':'')+
+ '<input id="np" type="password" class="ltr" autocomplete="new-password" maxlength="64" placeholder="كلمة السر الجديدة"><input id="np2" type="password" class="ltr" autocomplete="new-password" maxlength="64" placeholder="اكتبها تاني للتأكيد">'+
+ (sget('opw')?'<button class="g" id="nsv" type="button" style="width:100%;margin-bottom:8px">👁 عرض كلمتي المحفوظة على الجهاز</button>':'')+'<div class="acts"><button class="g" id="ng" type="button">🎲 ولّد لي كلمة سر</button><button class="g" id="nsh" type="button">إظهار</button></div>'+
+ '<button id="ns" style="width:100%;margin-top:8px">'+(c.has_pass?'تغيير كلمة السر':'حفظ كلمة السر')+'</button></details>'}
+function topBind(){var u=shopUrl(),c=D.client,GEN=false;
+ $('cp').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(u).then(function(){toast('تم النسخ')},function(){toast('النسخ غير متاح')})};
+ $('wa').onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent(c.name+' 👇\n'+u))};
+ if($('npc'))$('npc').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(NEWPW).then(function(){toast('تم النسخ')},function(){toast('النسخ غير متاح')})};
+ if($('nsv'))$('nsv').onclick=function(){alert('كلمة السر المحفوظة على الجهاز ده:\n'+sget('opw'))};
+ $('ng').onclick=function(){var g=genPass();$('np').value=g;$('np2').value=g;$('np').type='text';$('np2').type='text';GEN=true;$('nsh').textContent='إخفاء';toast('اتولّدت. اضغط حفظ')};
+ $('nsh').onclick=function(){var t=$('np').type==='password'?'text':'password';$('np').type=t;$('np2').type=t;$('nsh').textContent=t==='text'?'إخفاء':'إظهار'};
+ $('ns').onclick=function(){var a=$('np').value,b2=$('np2').value;if(a.length<6)return toast('كلمة السر 6 حروف أو أرقام على الأقل');if(a!==b2)return toast('الكلمتين مش زي بعض');var bt=$('ns');bt.disabled=true;rpc('owner_set_pass',{p_token:TOK,p_pass:a}).then(function(){D.client.has_pass=true;NEWPW=GEN?a:'';if(GEN)sset('opw',a);toast('تم حفظ كلمة السر ✅');draw()}).catch(function(e){toast(emsg(e));bt.disabled=false})}}
+
+/* ---------- الرابط والإشعارات ---------- */
+function u8(b){var p='='.repeat((4-b.length%4)%4),s=(b+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(s),o=new Uint8Array(r.length);for(var i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o}
+function pushOn(){if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return toast('جهازك مش بيدعم الإشعارات هنا. على الآيفون: ثبّت التطبيق على الشاشة الرئيسية الأول.');
+ Notification.requestPermission().then(function(p){if(p!=='granted')throw new Error('denied');return navigator.serviceWorker.ready}).then(function(reg){return reg.pushManager.getSubscription().then(function(s){return s||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)})})}).then(function(s){var j=s.toJSON();return rpc('owner_push_save',{p_token:TOK,p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth})}).then(function(){sset('op','1');D.client.push=Math.max(1,D.client.push||0);toast('تم تفعيل الإشعارات ✅');draw()}).catch(function(e){toast(e&&e.message==='denied'?'اسمح بالإشعارات من إعدادات المتصفح':'ما اتفعّلتش، جرّب تاني')})}
+function pushOff(){navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription()}).then(function(s){if(!s)return;var e=s.endpoint;return s.unsubscribe().then(function(){return rpc('owner_push_del',{p_token:TOK,p_endpoint:e})})}).then(function(){sset('op',null);toast('اتقفلت الإشعارات على الجهاز ده');draw()}).catch(function(){toast('حصلت مشكلة')})}
+function vLink(){var v=$('v'),c=D.client,on=sget('op')==='1';
+ v.innerHTML='<div class="card"><h2>🔔 إشعارات الطلبات على موبايلك</h2><p class="fh">بتوصلك إشعار أول ما زبون يطلب، حتى لو اللوحة مقفولة.</p>'+(on?'<p class="ok">✅ مفعّلة على الجهاز ده</p><button class="g" id="po" style="width:100%">إيقاف على الجهاز ده</button>':'<button id="pn" style="width:100%">تفعيل الإشعارات</button>')+'</div>'+
+ '<div class="card"><h2>✈️ إشعارات تليجرام</h2>'+(c.tg_ok?'<p class="ok">✅ متربط. أي طلب جديد هيوصلك على تليجرام.</p><button class="g" id="tu" style="width:100%">فك الربط</button>':'<p class="fh">اضغط الزر وبعدين Start في البوت علشان توصلك الطلبات على تليجرام.</p><a href="https://t.me/'+TGBOT+'?start=c_'+encodeURIComponent(c.tg)+'"><button type="button" style="width:100%">اربط تليجرام</button></a>')+'</div>'+
+ (c.sub_ends_at?'<div class="card sub">اشتراكك ينتهي: '+esc(c.sub_ends_at)+'</div>':'');
+ if($('pn'))$('pn').onclick=pushOn;if($('po'))$('po').onclick=pushOff;
+ if($('tu'))$('tu').onclick=function(){if(confirm('تفك ربط تليجرام؟'))rpc('owner_tg_unlink',{p_token:TOK}).then(load).catch(function(e){toast(emsg(e))})}}
+
+/* ---------- تشغيل ---------- */
+(function(){var q=new URLSearchParams(location.search),h=(location.hash.match(/[#&]k=([A-Za-z0-9 -]+)/)||[])[1],s=(q.get('s')||sget('os')||'').trim().toLowerCase();SLUG=s;
+ if(location.hash||q.get('k'))history.replaceState(null,'',location.pathname+(s?'?s='+encodeURIComponent(s):''));
+ TOK=sget('ot')||'';
+ if(h&&s)doLogin(s,h.replace(/[^A-Za-z0-9]/g,''));else if(TOK)load();else login('',s);
+ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+ setInterval(function(){if(TOK&&D&&!document.hidden&&!BUSY)poll()},30000);
+ document.addEventListener('visibilitychange',function(){if(!document.hidden&&TOK&&D&&!BUSY)poll()})})();
+</script>
+<script src="install.js"></script>
+</body>
+</html>
