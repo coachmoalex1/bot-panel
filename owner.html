@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1e6fd9">
+<title>لوحة نشاطي | Client Spot</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta property="og:title" content="لوحة نشاطي | Client Spot">
+<meta property="og:description" content="تابع طلباتك وارفع خدماتك وأعمالك من مكان واحد.">
+<meta property="og:image" content="https://coachmoalex1.github.io/bot-panel/og-image.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef5ff;--card:#fff;--ink:#0f2238;--mute:#5b7089;--line:#d5e3f3;--acc:#1e6fd9;--on:#fff;--inp:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1626;--card:#11233a;--ink:#eaf3ff;--mute:#9fb5cc;--line:#26405e;--acc:#4da3ff;--on:#06182c;--inp:#0b1a2d}}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:16px/1.6 Tajawal,system-ui,sans-serif;padding:14px 14px 90px}
+h1{font-size:22px;margin:6px 0}h2{font-size:17px;margin:0 0 6px}.sub,small,.fh{color:var(--mute);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
+input,textarea{width:100%;padding:11px;margin:6px 0;border-radius:12px;border:1px solid var(--line);background:var(--inp);color:var(--ink);font:inherit}
+button{min-height:44px;border:0;border-radius:12px;padding:8px 14px;background:var(--acc);color:var(--on);font:700 15px Tajawal,system-ui;cursor:pointer}
+button.g{background:transparent;color:var(--acc);border:1px solid var(--line)}button.d{background:transparent;color:#dc2626;border:1px solid var(--line)}button:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tabs button{white-space:nowrap}
+.ltr{direction:ltr;text-align:left}img.t{width:100%;border-radius:12px;margin-top:8px;max-height:220px;object-fit:cover}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--line);font-size:13px}
+#toast{position:fixed;inset-inline:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:14px;display:none;z-index:99;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div><div id="toast"></div>
+<script>
+var U='https://aqmlkutbonkqaozeayot.supabase.co',K='sb_publishable_ly2LVyw0xaL2btskq13AUg_jEo7GhBt';
+var $=function(i){return document.getElementById(i)},A=$('app'),CODE='',D=null,TAB='orders';
+var ST={new:'جديد',preparing:'قيد التجهيز',out:'في الطريق',done:'تم التسليم',cancelled:'ملغي'};
+var NEXT={new:['preparing','ابدأ التجهيز'],preparing:['out','خرج للتوصيل'],out:['done','تم التسليم']};
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(function(){t.style.display='none'},2600)}
+function sget(k){try{return localStorage.getItem(k)}catch(e){return null}}function sset(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}
+function rpc(f,b){return fetch(U+'/rest/v1/rpc/'+f,{method:'POST',headers:{'Content-Type':'application/json',apikey:K,Authorization:'Bearer '+K},body:JSON.stringify(b||{})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j&&j.message||'err');return j})})}
+function emsg(e){var m=String(e&&e.message||e);return m.indexOf('bad_code')>-1?'الكود غير صحيح':m.indexOf('locked')>-1?'محاولات كتير غلط. جرّب بعد 10 دقايق':m.indexOf('img_big')>-1?'الصورة كبيرة':m.indexOf('limit')>-1?'وصلت للحد الأقصى':'حصلت مشكلة، جرّب تاني'}
+function shopUrl(){return location.origin+location.pathname.replace(/[^/]*$/,'')+'shop.html?c='+D.client.slug}
+function img(f,mx){return new Promise(function(ok,no){var r=new FileReader();r.onload=function(){var i=new Image();i.onload=function(){var s=Math.min(1,mx/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*s);c.height=Math.round(i.height*s);c.getContext('2d').drawImage(i,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.7))};i.onerror=no;i.src=r.result};r.onerror=no;r.readAsDataURL(f)})}
+function login(msg){A.innerHTML='<h1>لوحة نشاطي</h1><p class="sub">اكتب الكود (7 أرقام) اللي وصلك على واتساب.</p><div class="card"><input id="cd" class="ltr" inputmode="numeric" maxlength="7" placeholder="0000000" style="font-size:24px;text-align:center;letter-spacing:6px"><button id="go" style="width:100%;margin-top:8px">دخول</button>'+(msg?'<p style="color:#dc2626">'+esc(msg)+'</p>':'')+'</div>';
+ $('go').onclick=function(){var c=$('cd').value.trim();if(c.length!==7)return toast('الكود 7 أرقام');enter(c)}}
+function enter(c){A.innerHTML='<p class="sub">جاري التحميل...</p>';rpc('owner_get',{p_code:c}).then(function(d){CODE=c;D=d;sset('oc',c);history.replaceState(null,'',location.pathname);manifest();draw()}).catch(function(e){sset('oc',null);login(emsg(e))})}
+function manifest(){try{var b=location.origin+location.pathname.replace(/[^/]*$/,''),m={name:D.client.name+' | لوحة',short_name:String(D.client.name||'لوحتي').slice(0,12),start_url:b+'owner.html?k='+CODE,scope:b,display:'standalone',lang:'ar',dir:'rtl',background_color:'#1e6fd9',theme_color:'#1e6fd9',icons:[{src:b+'icon-192.png',sizes:'192x192',type:'image/png'},{src:b+'icon-512.png',sizes:'512x512',type:'image/png'}]},l=document.createElement('link');l.rel='manifest';l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}));document.head.appendChild(l);document.title=D.client.name+' | لوحة'}catch(e){}}
+function refresh(){return rpc('owner_get',{p_code:CODE}).then(function(d){D=d;draw()}).catch(function(e){toast(emsg(e))})}
+function draw(){var c=D.client,open=D.orders.filter(function(o){return o.status!=='done'&&o.status!=='cancelled'}).length;
+ A.innerHTML='<div class="row"><div><h1>'+esc(c.name)+'</h1><span class="sub">لوحة صاحب النشاط</span></div><button class="g" id="out">خروج</button></div>'+
+ '<div class="tabs"><button data-t="orders" class="'+(TAB==='orders'?'':'g')+'">الطلبات'+(open?' ('+open+')':'')+'</button><button data-t="items" class="'+(TAB==='items'?'':'g')+'">خدماتي</button><button data-t="works" class="'+(TAB==='works'?'':'g')+'">أعمالي</button><button data-t="link" class="'+(TAB==='link'?'':'g')+'">الرابط</button></div><div id="v"></div>';
+ $('out').onclick=function(){sset('oc',null);location.href=location.pathname};
+ A.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){TAB=b.dataset.t;draw()}});
+ ({orders:vOrders,items:vItems,works:vWorks,link:vLink})[TAB]()}
+function vOrders(){var v=$('v');if(!D.orders.length){v.innerHTML='<div class="card sub">لسه مفيش طلبات. أول ما زبون يطلب هتلاقيه هنا وهيوصلك إشعار.</div>';return}
+ v.innerHTML=D.orders.map(function(o){var n=NEXT[o.status||'new'],ls=(o.lines||[]).map(function(l){return esc(l.name)+' ×'+esc(l.q)}).join('، ');
+  return '<div class="card"><div class="row"><b>'+esc(o.cust_name)+'</b><span class="pill">'+(ST[o.status||'new']||o.status)+'</span></div><small>'+new Date(o.created_at).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'})+'</small><p style="margin:6px 0">'+ls+'</p><b>'+esc(o.total)+'</b>'+(o.address?'<p class="sub">📍 '+esc(o.address)+'</p>':'')+(o.notes?'<p class="sub">📝 '+esc(o.notes)+'</p>':'')+
+  '<div class="row" style="margin-top:8px"><a href="tel:'+esc(o.cust_phone)+'"><button class="g" type="button">📞 اتصال</button></a>'+(n?'<button data-o="'+o.id+'" data-s="'+n[0]+'">'+n[1]+'</button>':'')+((o.status||'new')!=='done'&&o.status!=='cancelled'?'<button class="d" data-o="'+o.id+'" data-s="cancelled">إلغاء</button>':'')+'</div></div>'}).join('');
+ v.querySelectorAll('[data-o]').forEach(function(b){b.onclick=function(){if(b.dataset.s==='cancelled'&&!confirm('تلغي الطلب؟'))return;b.disabled=true;rpc('owner_order_status',{p_code:CODE,p_id:b.dataset.o,p_status:b.dataset.s}).then(refresh).catch(function(e){toast(emsg(e));b.disabled=false})}})}
+function vItems(){var v=$('v');v.innerHTML='<div class="card"><h2>إضافة خدمة أو منتج</h2><input id="in" placeholder="الاسم"><input id="ip" placeholder="السعر (مثال: 150)" inputmode="decimal"><textarea id="id" rows="2" placeholder="وصف قصير (اختياري)"></textarea><input type="file" id="ii" accept="image/*"><button id="ia" style="width:100%;margin-top:8px">إضافة</button></div>'+
+ (D.items.length?D.items.map(function(i){return '<div class="card"><div class="row"><b>'+esc(i.name)+'</b><span>'+esc(i.price)+'</span></div>'+(i.descr?'<p class="sub">'+esc(i.descr)+'</p>':'')+(i.img?'<img class="t" src="'+esc(i.img)+'" alt="">':'')+'<div class="row" style="margin-top:8px"><button class="g" data-tg="'+i.id+'">'+(i.ok?'متاح ✅ (إيقاف)':'موقوف (تشغيل)')+'</button><button class="d" data-dl="'+i.id+'">حذف</button></div></div>'}).join(''):'<p class="sub">لسه مفيش خدمات. أضف أول واحدة من فوق.</p>');
+ $('ia').onclick=async function(){var n=$('in').value.trim();if(!n)return toast('اكتب الاسم');var b=$('ia');b.disabled=true;try{var im=$('ii').files[0]?await img($('ii').files[0],720):null;await rpc('owner_item_save',{p_code:CODE,p_id:null,p_name:n,p_price:$('ip').value.trim(),p_descr:$('id').value.trim(),p_img:im,p_ok:true});toast('تمت الإضافة');await refresh()}catch(e){toast(emsg(e));b.disabled=false}};
+ v.querySelectorAll('[data-dl]').forEach(function(b){b.onclick=function(){if(confirm('تحذف؟'))rpc('owner_item_del',{p_code:CODE,p_id:b.dataset.dl}).then(refresh).catch(function(e){toast(emsg(e))})}});
+ v.querySelectorAll('[data-tg]').forEach(function(b){b.onclick=function(){var i=D.items.find(function(x){return x.id===b.dataset.tg});rpc('owner_item_save',{p_code:CODE,p_id:i.id,p_name:i.name,p_price:i.price,p_descr:i.descr,p_img:null,p_ok:!i.ok}).then(refresh).catch(function(e){toast(emsg(e))})}})}
+function vWorks(){var v=$('v'),W=D.client.works||[],P=D.client.vip||[];
+ v.innerHTML='<div class="card"><h2>📸 أحد أعمالنا ('+W.length+'/12)</h2><p class="fh">ارفع صور شغلك الحقيقي، بتظهر لزبائنك في المتجر.</p>'+W.map(function(w,n){return '<div><img class="t" src="'+esc(w.u)+'" alt=""><input data-wt="'+n+'" value="'+esc(w.t||'')+'" placeholder="سطر عن الصورة"><button class="d" data-wx="'+n+'">حذف</button></div>'}).join('')+'<input type="file" id="wf" accept="image/*" multiple style="margin-top:10px"></div>'+
+ '<div class="card"><h2>⭐ عملاؤنا المميزون ('+P.length+')</h2>'+P.map(function(p,n){return '<div class="row" style="margin:6px 0"><span><b>'+esc(p.n)+'</b>'+(p.t?'<br><small>'+esc(p.t)+'</small>':'')+'</span><button class="d" data-vx="'+n+'">حذف</button></div>'}).join('')+'<input id="vn" placeholder="اسم العميل"><input id="vt" placeholder="ملحوظة (اختياري)"><button id="va" style="width:100%">إضافة</button></div>';
+ function sw(w){return rpc('owner_set_works',{p_code:CODE,p_works:w}).then(function(){D.client.works=w;draw()}).catch(function(e){toast(emsg(e))})}
+ function sv(p){return rpc('owner_set_vip',{p_code:CODE,p_vip:p}).then(function(){D.client.vip=p;draw()}).catch(function(e){toast(emsg(e))})}
+ $('wf').onchange=async function(){var fs=Array.from(this.files);if(!fs.length)return;if(W.length+fs.length>12)return toast('الحد 12 صورة');toast('جاري الرفع...');try{var N=W.slice();for(var f of fs)N.push({u:await img(f,720),t:''});await sw(N)}catch(e){toast('حصلت مشكلة في الصورة')}};
+ v.querySelectorAll('[data-wx]').forEach(function(b){b.onclick=function(){var N=W.slice();N.splice(+b.dataset.wx,1);sw(N)}});
+ v.querySelectorAll('[data-wt]').forEach(function(e){e.onchange=function(){var N=W.slice();N[+e.dataset.wt]={u:N[+e.dataset.wt].u,t:e.value};rpc('owner_set_works',{p_code:CODE,p_works:N}).then(function(){D.client.works=N;toast('تم الحفظ')})}});
+ $('va').onclick=function(){var n=$('vn').value.trim();if(!n)return toast('اكتب الاسم');sv(P.concat([{n:n,t:$('vt').value.trim()}]))};
+ v.querySelectorAll('[data-vx]').forEach(function(b){b.onclick=function(){var N=P.slice();N.splice(+b.dataset.vx,1);sv(N)}})}
+function vLink(){var v=$('v'),u=shopUrl(),c=D.client,tg=typeof TG==='string'?TG:'dar9144284BOT';
+ v.innerHTML='<div class="card"><h2>🛍️ رابط متجرك</h2><p class="fh">ابعته لزبائنك على واتساب أو انشره.</p><input class="ltr" readonly value="'+esc(u)+'"><div class="row"><button id="cp" class="g">نسخ</button><button id="wa">مشاركة واتساب</button></div></div>'+
+ '<div class="card"><h2>✈️ إشعارات الطلبات على تليجرام</h2>'+(c.tg_ok?'<p>✅ متربط. أي طلب جديد هيوصلك على تليجرام.</p>':'<p class="fh">اضغط الزر وبعدين Start في البوت علشان توصلك الطلبات على تليجرام.</p><a href="https://t.me/'+tg+'?start=c_'+esc(c.tg)+'"><button type="button" style="width:100%">اربط تليجرام</button></a>')+'</div>'+
+ (c.sub_ends_at?'<div class="card sub">اشتراكك ينتهي: '+esc(c.sub_ends_at)+'</div>':'');
+ $('cp').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(u).then(function(){toast('تم النسخ')})};$('wa').onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent(c.name+' 👇\n'+u))}}
+(function(){var p=new URLSearchParams(location.search).get('k'),c=(p||sget('oc')||'').replace(/\D/g,'');if(c.length===7)enter(c);else login();
+ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+ setInterval(function(){if(D&&TAB==='orders'&&!document.hidden)rpc('owner_get',{p_code:CODE}).then(function(d){var a=D.orders.length;D=d;if(d.orders.length>a)draw()}).catch(function(){})},30000)})();
+</script>
+<script src="install.js"></script>
+</body>
+</html>
