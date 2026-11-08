@@ -22,12 +22,12 @@ function show(auto,force){
   if(!force)h+='<button class="g" id="ins-x">'+t.later+'</button>';else h+='<p style="text-align:center;opacity:.7;font-size:13px;margin:4px 0 0">'+t.must+'</p>';h+='</div>';o.innerHTML=h;o.style.display='flex';o.style.background=force?'var(--bg,#0a1626)':'';
   var g=D.getElementById('ins-go');if(g)g.onclick=function(){var e=ip;ip=null;e.prompt();e.userChoice.then(close,close)};
   var xx=D.getElementById('ins-x');if(xx)xx.onclick=later}
-function later(){try{sessionStorage.setItem('ins_off','1')}catch(e){}close()}
+function later(){try{sessionStorage.setItem('ins_off','1');localStorage.setItem('ins_until',String(Date.now()+7*864e5))}catch(e){}close()}
 addEventListener('beforeinstallprompt',function(e){e.preventDefault();ip=e;bar()});
 addEventListener('appinstalled',close);
 window.raddInstall=function(){if(ip&&!std()){var e=ip;ip=null;e.prompt();e.userChoice.then(close,close);return}show(false)};
 window.raddCanInstall=function(){return !std()};
-function auto(){if(gate||D.documentElement.getAttribute('data-panel')==='1')return;var off=0;try{off=sessionStorage.getItem('ins_off')}catch(e){}
+function auto(){if(gate||D.documentElement.getAttribute('data-panel')==='1'||/shop/i.test(location.pathname))return;var off=0;try{off=sessionStorage.getItem('ins_off')||(Number(localStorage.getItem('ins_until')||0)>Date.now()?1:0)}catch(e){}
   if(std()||off)return;
   var n=0,iv=setInterval(function(){n++;if(ip){clearInterval(iv);show(true)}else if(ios()||n>6){clearInterval(iv);show(true)}},700)}
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',auto);else auto();
